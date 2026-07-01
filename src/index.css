@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Base styles */
+body {
+  margin: 0;
+  background: #f5f5f5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Card rarity colors */
+.rarity-common { color: #1a1a1a; }
+.rarity-uncommon { color: #707883; }
+.rarity-rare { color: #a58e3a; }
+.rarity-mythic { color: #e85d2c; }
+.rarity-special { color: #9c27b0; }
+
+/* Mana symbol styling */
+.mana-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  margin-right: 2px;
+}
+
+.mana-W { background: #f9f3d5; color: #1a1a1a; border: 1px solid #d4c87a; }
+.mana-U { background: #0e68ab; }
+.mana-B { background: #1a1a1a; }
+.mana-R { background: #d3202a; }
+.mana-G { background: #00733e; }
+.mana-C { background: #a0a0a0; color: #1a1a1a; }
