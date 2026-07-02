@@ -9,21 +9,23 @@ const { Text } = Typography;
 
 interface HintPanelProps {
   hints: HintResult[];
-  totalAvailable: number;
-  remaining: number;
+  currentLevel: number;
+  maxLevel: number;
+  exhausted: boolean;
 }
 
 export default function HintPanel({
   hints,
-  totalAvailable,
-  remaining,
+  currentLevel,
+  maxLevel,
+  exhausted,
 }: HintPanelProps) {
   return (
     <Card
       title={
         <span>
           <BulbOutlined style={{ marginRight: 8 }} />
-          已揭示提示 ({hints.length}/{totalAvailable})
+          已揭示提示 ({hints.length})
         </span>
       }
       size="small"
@@ -42,7 +44,7 @@ export default function HintPanel({
                   color={hint.isSpoiler ? 'orange' : 'blue'}
                   style={{ marginBottom: 4 }}
                 >
-                  {hint.ruleName}
+                  Lv.{hint.level} {hint.ruleName}
                 </Tag>
                 <Text>{hint.text}</Text>
               </div>
@@ -50,14 +52,14 @@ export default function HintPanel({
           }))}
         />
       )}
-      {remaining > 0 && hints.length > 0 && (
+      {!exhausted && hints.length > 0 && (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          还有 {remaining} 条提示未揭示
+          当前提示等级：Lv.{Math.min(currentLevel, maxLevel)}
         </Text>
       )}
-      {remaining === 0 && hints.length > 0 && (
+      {exhausted && hints.length > 0 && (
         <Text type="warning" style={{ fontSize: 12 }}>
-          所有提示已揭示！
+          提示机会已耗尽
         </Text>
       )}
     </Card>

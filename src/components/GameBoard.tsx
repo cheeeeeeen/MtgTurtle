@@ -183,8 +183,9 @@ export default function GameBoard() {
         <Col xs={24} md={8}>
           <HintPanel
             hints={hintsRevealed}
-            totalAvailable={hintEngine?.totalCount() ?? 0}
-            remaining={hintEngine?.remainingCount() ?? 0}
+            currentLevel={hintEngine?.getCurrentLevel() ?? 1}
+            maxLevel={hintEngine?.getMaxHintLevel() ?? 1}
+            exhausted={hintEngine?.isExhausted() ?? false}
           />
         </Col>
       </Row>

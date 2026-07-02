@@ -7,15 +7,13 @@ import { evaluateAllRules } from '@/config/hint-rules';
 export class HintEngine {
   private allHints: HintResult[];
   private revealed: Set<string>;
-  private shuffledQueue: HintResult[];
+  private currentLevel: number;
+  private readonly maxLevel = 6;
 
   constructor(allHints: HintResult[]) {
     this.allHints = allHints;
     this.revealed = new Set();
-
-    // 随机打乱提示顺序（用于每次展示）
-    this.shuffledQueue = [...this.allHints];
-    this.shuffleQueue();
+    this.currentLevel = 1;
   }
 
   /** 用所有规则评估一张卡牌 */
@@ -24,55 +22,103 @@ export class HintEngine {
     return new HintEngine(hints);
   }
 
-  private shuffleQueue(): void {
-    for (let i = this.shuffledQueue.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [this.shuffledQueue[i], this.shuffledQueue[j]] = [
-        this.shuffledQueue[j],
-        this.shuffledQueue[i],
-      ];
+  private randomItem<T>(items: T[]): T {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  private getAllFamilies(): Set<string> {
+    return new Set(this.allHints.map((hint) => hint.family));
+  }
+
+  private getFamilyRevealedLevel(family: string): number {
+    let level = 0;
+    for (const hint of this.allHints) {
+      if (hint.family === family && this.revealed.has(hint.ruleId)) {
+        level = Math.max(level, hint.level);
+      }
     }
+    return level;
+  }
+
+  private getEligibleFamiliesAtLevel(level: number): string[] {
+    return [...this.getAllFamilies()].filter((family) => {
+      if (this.getFamilyRevealedLevel(family) >= level) return false;
+      return this.allHints.some(
+        (hint) =>
+          hint.family === family &&
+          hint.level === level &&
+          !this.revealed.has(hint.ruleId)
+      );
+    });
+  }
+
+  private advanceToNextAvailableLevel(): boolean {
+    while (
+      this.currentLevel <= this.maxLevel &&
+      this.getEligibleFamiliesAtLevel(this.currentLevel).length === 0
+    ) {
+      this.currentLevel++;
+    }
+    return this.currentLevel <= this.maxLevel;
+  }
+
+  private setRequestedLevel(level: number): void {
+    this.currentLevel = Math.max(
+      this.currentLevel,
+      Math.min(Math.max(level, 1), this.maxLevel)
+    );
   }
 
   /** 获取一条随机初始提示 */
   getRandomInitial(): HintResult | null {
-    if (this.shuffledQueue.length === 0) return null;
-    const hint = this.shuffledQueue[0];
-    this.revealed.add(hint.ruleId);
-    return hint;
+    return this.revealNext(1);
   }
 
   /** 揭示下一条未展示的提示 */
-  revealNext(): HintResult | null {
-    for (const hint of this.shuffledQueue) {
-      if (!this.revealed.has(hint.ruleId)) {
-        this.revealed.add(hint.ruleId);
-        return hint;
-      }
-    }
-    return null; // 所有提示已展示
+  revealNext(requestedLevel: number): HintResult | null {
+    this.setRequestedLevel(requestedLevel);
+    if (!this.advanceToNextAvailableLevel()) return null;
+
+    const family = this.randomItem(
+      this.getEligibleFamiliesAtLevel(this.currentLevel)
+    );
+    const candidates = this.allHints.filter(
+      (hint) =>
+        hint.level === this.currentLevel &&
+        hint.family === family &&
+        !this.revealed.has(hint.ruleId)
+    );
+    const hint = this.randomItem(candidates);
+    this.revealed.add(hint.ruleId);
+    this.advanceToNextAvailableLevel();
+    return hint;
   }
 
   /** 获取已揭示的提示列表 */
   getRevealed(): HintResult[] {
-    return this.shuffledQueue.filter((h) => this.revealed.has(h.ruleId));
+    return this.allHints.filter((h) => this.revealed.has(h.ruleId));
   }
 
-  /** 剩余未揭示的提示数 */
-  remainingCount(): number {
-    return this.shuffledQueue.filter(
-      (h) => !this.revealed.has(h.ruleId)
-    ).length;
+  /** 当前提示等级 */
+  getCurrentLevel(): number {
+    return this.currentLevel;
   }
 
-  /** 总共可用的提示数 */
-  totalCount(): number {
-    return this.allHints.length;
+  /** 最高提示等级 */
+  getMaxHintLevel(): number {
+    return this.maxLevel;
+  }
+
+  /** 是否还有可揭示的提示机会 */
+  isExhausted(): boolean {
+    const originalLevel = this.currentLevel;
+    const hasNext = this.advanceToNextAvailableLevel();
+    this.currentLevel = originalLevel;
+    return !hasNext;
   }
 
   /** 添加一条动态提示（不在初始规则集中的） */
   addDynamicHint(hint: HintResult): void {
     this.allHints.push(hint);
-    this.shuffledQueue.push(hint);
   }
 }

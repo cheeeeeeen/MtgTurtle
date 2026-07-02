@@ -52,6 +52,10 @@ function calculateScore(guessCount: number, _hintsRevealed: number): number {
   return Math.round(weightedSum / totalWeight);
 }
 
+function getHintLevelForGuessCount(guessCount: number): number {
+  return Math.min(Math.floor(guessCount / 5) + 1, 6);
+}
+
 /** 获取今日 UTC 日期字符串 */
 function getTodayUTCDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -200,13 +204,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       return true;
     } else {
       // 揭示下一条提示
-      const nextHint = hintEngine.revealNext();
+      const newGuesses = [...guesses, guessRecord];
+      const nextHint = hintEngine.revealNext(
+        getHintLevelForGuessCount(newGuesses.length)
+      );
       const newHints = nextHint
         ? [...hintsRevealed, nextHint]
         : hintsRevealed;
 
       set({
-        guesses: [...guesses, guessRecord],
+        guesses: newGuesses,
         hintsRevealed: newHints,
       });
 

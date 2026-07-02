@@ -245,6 +245,8 @@ export interface DeckSummary {
 export interface HintResult {
   ruleId: string;
   ruleName: string;
+  family: string;
+  level: number;
   text: string;
   isSpoiler?: boolean; // 是否为剧透级提示（如规则文本）
 }
@@ -291,7 +293,8 @@ export interface FormatOption {
 export interface HintRule {
   id: string;
   name: string;
-  priority: number;
+  family: string;
+  level: number;
   enabled: boolean;
   evaluate: (card: MtgCard) => HintResult | null;
 }
