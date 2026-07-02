@@ -1,5 +1,5 @@
 import type { MtgCard } from '@/types/card';
-import { fetchRandomCard, fetchCardDetail, fetchDeckCount } from '@/api/mtgch';
+import { fetchRandomCard, fetchCardDetail, fetchDeckCount, fetchVersions } from '@/api/mtgch';
 
 /** 基本地牌名，需要排除 */
 const BASIC_LANDS = new Set([
@@ -46,6 +46,58 @@ function normalizeCard(card: MtgCard): MtgCard {
     return card;
   }
   return card;
+}
+
+/**
+ * 获取卡牌的最早印刷版本详情
+ * 通过 /versions API 获取所有版本，并行查询每个版本的完整数据，
+ * 返回 released_at 最早的那个版本
+ */
+async function fetchOldestVersion(card: MtgCard): Promise<MtgCard | null> {
+  try {
+    const versions = await fetchVersions(card.id);
+
+    if (versions.length <= 1) return null;
+
+    const details = await Promise.all(
+      versions.map((v) =>
+        fetchCardDetail(v.set, v.collector_number).catch(() => null)
+      )
+    );
+
+    const valid = details.filter((d): d is MtgCard => d !== null);
+    if (valid.length === 0) return null;
+
+    return valid.reduce((a, b) =>
+      a.released_at < b.released_at ? a : b
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 用最老版本的系列信息覆盖卡牌的相关字段
+ * 游戏规则字段（oracle_text, type_line 等）保留不变
+ * 如果最老版本缺少图片/画家则回退到原卡牌
+ */
+function applyOldestVersion(card: MtgCard, oldest: MtgCard): MtgCard {
+  return {
+    ...card,
+    // 系列信息
+    set: oldest.set,
+    set_name: oldest.set_name,
+    set_translated_name: oldest.set_translated_name,
+    set_type: oldest.set_type,
+    released_at: oldest.released_at,
+    rarity: oldest.rarity,
+    collector_number: oldest.collector_number,
+    int_collector_number: oldest.int_collector_number,
+    // 视觉信息（图片和画家要匹配最老版本，否则和系列信息矛盾）
+    image_uris: oldest.image_uris ?? card.image_uris,
+    zhs_image_uris: oldest.zhs_image_uris ?? card.zhs_image_uris,
+    artist: oldest.artist || card.artist,
+  };
 }
 
 /**
@@ -97,7 +149,9 @@ export async function selectCard(
       continue;
     }
 
-    // 通过！返回
-    return normalizeCard(card);
+    // 通过！替换为最早版本的系列信息
+    const oldest = await fetchOldestVersion(card);
+    const finalCard = oldest ? applyOldestVersion(card, oldest) : card;
+    return normalizeCard(finalCard);
   }
 }

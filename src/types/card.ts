@@ -296,6 +296,16 @@ export interface HintRule {
   evaluate: (card: MtgCard) => HintResult | null;
 }
 
+/** /api/v1/versions 返回的单条版本摘要 */
+export interface VersionSummary {
+  id: string;
+  set: string;
+  set_name: string;
+  collector_number: string;
+  name: string;
+  display_name: string;
+}
+
 // ========== 海龟汤模式 ==========
 
 /** LLM 回答 */

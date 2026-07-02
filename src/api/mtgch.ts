@@ -3,6 +3,7 @@ import type {
   RandomCardResponse,
   AutoCompleteItem,
   DeckListResponse,
+  VersionSummary,
 } from '@/types/card';
 
 const BASE = 'https://mtgch.com/api/v1';
@@ -67,4 +68,15 @@ export function fetchFormats(): Promise<{
   items: { code: string; name: string }[];
 }> {
   return fetchJSON(`${BASE}/deck/formats/`);
+}
+
+/** 获取某张卡牌的所有印刷版本 */
+export function fetchVersions(
+  cardId: string,
+  limit = 100
+): Promise<VersionSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return fetchJSON<VersionSummary[]>(
+    `${BASE}/versions/${cardId}/?${params.toString()}`
+  );
 }

@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { AutoComplete, Input, Space, Tag } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
+import { debounce } from 'lodash-es';
 
 import { useAutocomplete } from '@/hooks/useAutocomplete';
 
@@ -12,6 +14,12 @@ interface GuessInputProps {
 export default function GuessInput({ onGuess, disabled, guessCount }: GuessInputProps) {
   const { options, search } = useAutocomplete();
 
+  // 防抖 300ms：leading=true 保证首次立即触发，trailing=false 忽略短时间内的重复调用
+  const debouncedGuess = useMemo(
+    () => debounce((value: string) => onGuess(value), 300, { leading: true, trailing: false }),
+    [onGuess]
+  );
+
   return (
     <div style={{ marginBottom: 16 }}>
       <Space style={{ marginBottom: 8 }}>
@@ -20,7 +28,7 @@ export default function GuessInput({ onGuess, disabled, guessCount }: GuessInput
       <AutoComplete
         options={options}
         onSearch={search}
-        onSelect={(value) => onGuess(value as string)}
+        onSelect={(value) => debouncedGuess(value as string)}
         style={{ width: '100%' }}
         disabled={disabled}
       >
@@ -30,7 +38,7 @@ export default function GuessInput({ onGuess, disabled, guessCount }: GuessInput
           prefix={<SearchOutlined />}
           onPressEnter={(e) => {
             const value = (e.target as HTMLInputElement).value.trim();
-            if (value) onGuess(value);
+            if (value) debouncedGuess(value);
           }}
           disabled={disabled}
         />
