@@ -8,6 +8,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Recover from GitHub Pages SPA 404 redirect
+      (function() {
+        var redirect = sessionStorage.getItem('spa_redirect');
+        if (redirect) {
+          sessionStorage.removeItem('spa_redirect');
+          var base = '/MtgTurtle/';
+          if (redirect.startsWith(base)) {
+            var path = redirect.slice(base.length) || '';
+            history.replaceState(null, '', base + path);
+          }
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
