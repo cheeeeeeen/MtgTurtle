@@ -12,7 +12,7 @@ export default function SettingsPanel() {
       <Space direction="vertical" style={{ width: '100%' }}>
         <div>
           <Text strong style={{ display: 'block', marginBottom: 4 }}>
-            赛制过滤
+            赛制选择
           </Text>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
             选择赛制后，热度过滤将基于该赛制的套牌使用数

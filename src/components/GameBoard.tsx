@@ -7,7 +7,6 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '@/stores/gameStore';
-import type { GameMode } from '@/types/card';
 import GuessInput from './GuessInput';
 import HintPanel from './HintPanel';
 import CardReveal from './CardReveal';
@@ -15,11 +14,7 @@ import ScoreBoard from './ScoreBoard';
 
 const { Text } = Typography;
 
-interface GameBoardProps {
-  mode: GameMode;
-}
-
-export default function GameBoard({ mode }: GameBoardProps) {
+export default function GameBoard() {
   const navigate = useNavigate();
   const [showReveal, setShowReveal] = useState(false);
 
@@ -51,7 +46,7 @@ export default function GameBoard({ mode }: GameBoardProps) {
 
   const handlePlayAgain = () => {
     setShowReveal(false);
-    startGame(mode);
+    startGame();
   };
 
   // 加载状态
@@ -79,16 +74,14 @@ export default function GameBoard({ mode }: GameBoardProps) {
               type="secondary"
               style={{ fontSize: 16, display: 'block', marginBottom: 24 }}
             >
-              {mode === 'daily'
-                ? '今日挑战：随机一张卡牌，所有人猜同一张！'
-                : '随机一张万智牌，根据提示猜出它的名字'}
+              随机一张万智牌，根据提示猜出它的名字
             </Text>
             <Button
               type="primary"
               size="large"
-              onClick={() => startGame(mode)}
+              onClick={() => startGame()}
             >
-              开始{mode === 'daily' ? '每日挑战' : '游戏'}
+              开始游戏
             </Button>
           </div>
         </Col>
@@ -204,6 +197,7 @@ export default function GameBoard({ mode }: GameBoardProps) {
         guessCount={guesses.length}
         hintsRevealed={hintsRevealed.length}
         score={getScoreFn().score}
+        onClose={() => setShowReveal(false)}
         onPlayAgain={handlePlayAgain}
       />
     </>

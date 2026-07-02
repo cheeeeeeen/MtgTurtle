@@ -38,6 +38,9 @@ export async function fetchDeckCount(
     page: '1',
     page_size: '50',
   });
+  if (formatCode) {
+    params.set('format_code', formatCode);
+  }
   const url = `${BASE}/deck/decks/?${params.toString()}`;
   const data = await fetchJSON<DeckListResponse>(url);
 
@@ -46,19 +49,6 @@ export async function fetchDeckCount(
   for (const deck of data.items) {
     const fmt = deck.format_code;
     topFormats[fmt] = (topFormats[fmt] || 0) + 1;
-  }
-
-  // 如果指定了赛制过滤，重新查询
-  if (formatCode) {
-    const filteredParams = new URLSearchParams({
-      oracle_ids: oracleId,
-      page: '1',
-      page_size: '1',
-      format_code: formatCode,
-    });
-    const filteredUrl = `${BASE}/deck/decks/?${filteredParams.toString()}`;
-    const filteredData = await fetchJSON<DeckListResponse>(filteredUrl);
-    return { count: filteredData.count, topFormats };
   }
 
   return { count: data.count, topFormats };

@@ -295,3 +295,48 @@ export interface HintRule {
   enabled: boolean;
   evaluate: (card: MtgCard) => HintResult | null;
 }
+
+// ========== 海龟汤模式 ==========
+
+/** LLM 回答 */
+export type LlmAnswer = '是' | '否' | '无法确定';
+
+/** 聊天消息 */
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  isCorrectGuess?: boolean; // 玩家猜对了
+}
+
+/** LLM API 请求 */
+export interface LlmAskRequest {
+  question: string;
+  cardInfo: {
+    name: string;
+    chineseName: string;
+    manaCost: string;
+    cmc: number;
+    colors: string[];
+    typeLine: string;
+    oracleText: string;
+    flavorText: string;
+    power: string | null;
+    toughness: string | null;
+    loyalty: string | null;
+    setName: string;
+    setType: string;
+    rarity: string;
+    artist: string;
+    releasedAt: string;
+    keywords: string[];
+  };
+  history: { role: string; content: string }[];
+}
+
+/** LLM API 响应 */
+export interface LlmAskResponse {
+  answer: LlmAnswer;
+  reason?: string;
+}

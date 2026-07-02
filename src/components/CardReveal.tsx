@@ -11,6 +11,7 @@ interface CardRevealProps {
   guessCount: number;
   hintsRevealed: number;
   score: number;
+  onClose: () => void;
   onPlayAgain: () => void;
 }
 
@@ -33,6 +34,7 @@ export default function CardReveal({
   guessCount,
   hintsRevealed,
   score,
+  onClose,
   onPlayAgain,
 }: CardRevealProps) {
   if (!card) return null;
@@ -50,10 +52,10 @@ export default function CardReveal({
   return (
     <Modal
       open={open}
-      onCancel={onPlayAgain}
+      onCancel={onClose}
       onOk={onPlayAgain}
       okText="再来一局"
-      cancelText="返回首页"
+      cancelText="关闭"
       width={700}
       title={
         <span>

@@ -5,7 +5,7 @@ import zhCN from 'antd/locale/zh_CN';
 import Layout from '@/components/Layout';
 import HomePage from '@/pages/HomePage';
 import GamePage from '@/pages/GamePage';
-import DailyPage from '@/pages/DailyPage';
+// import TurtleSoupPage from '@/pages/TurtleSoupPage'; // TODO: 后续 review 后重新启用
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,7 +35,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route index element={<HomePage />} />
               <Route path="/game" element={<GamePage />} />
-              <Route path="/daily" element={<DailyPage />} />
+              {/* <Route path="/turtle-soup" element={<TurtleSoupPage />} /> */}
             </Route>
           </Routes>
         </BrowserRouter>

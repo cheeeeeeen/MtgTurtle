@@ -12,12 +12,12 @@ export default function GamePage() {
   return (
     <div>
       <Title level={4} style={{ marginBottom: 4 }}>
-        自由模式
+        万智牌海龟汤
       </Title>
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
         赛制：{formatLabel}
       </Text>
-      <GameBoard mode="free" />
+      <GameBoard />
     </div>
   );
 }

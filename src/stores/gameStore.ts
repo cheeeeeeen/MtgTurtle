@@ -4,7 +4,6 @@ import type {
   HintResult,
   GuessRecord,
   GameStatus,
-  GameMode,
   GameStats,
   FormatOption,
   ScoreCalculator,
@@ -12,7 +11,6 @@ import type {
 import { HintEngine } from '@/engine/hint-engine';
 import { GuessMatcher } from '@/engine/guess-matcher';
 import { selectCard } from '@/engine/card-selector';
-import { getTodayUTCDate } from '@/engine/daily-challenge';
 
 /** 可选赛制 */
 export const FORMAT_OPTIONS: FormatOption[] = [
@@ -54,6 +52,11 @@ function calculateScore(guessCount: number, _hintsRevealed: number): number {
   return Math.round(weightedSum / totalWeight);
 }
 
+/** 获取今日 UTC 日期字符串 */
+function getTodayUTCDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /** 从 localStorage 读取统计 */
 function loadStats(): GameStats {
   try {
@@ -79,9 +82,6 @@ function saveStats(stats: GameStats): void {
 }
 
 interface GameState {
-  // 游戏模式
-  mode: GameMode;
-
   // 当前目标卡牌
   targetCard: MtgCard | null;
 
@@ -103,12 +103,8 @@ interface GameState {
   // 统计
   stats: GameStats;
 
-  // 每日挑战
-  dailyCompleted: boolean;
-  dailyCardId: string | null;
-
   // Actions
-  startGame: (mode: GameMode) => Promise<void>;
+  startGame: () => Promise<void>;
   submitGuess: (input: string) => Promise<boolean>;
   giveUp: () => void;
   resetGame: () => void;
@@ -117,7 +113,6 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  mode: 'free',
   targetCard: null,
   hintEngine: null,
   hintsRevealed: [],
@@ -127,14 +122,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   loadingMessage: '',
   formatFilter: null,
   stats: loadStats(),
-  dailyCompleted: false,
-  dailyCardId: null,
 
-  startGame: async (mode: GameMode) => {
+  startGame: async () => {
     set({
       status: 'loading',
       loadingMessage: '正在随机抽取卡牌...',
-      mode,
       guesses: [],
       hintsRevealed: [],
       targetCard: null,
@@ -142,18 +134,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
 
     const state = get();
-
-    // 每日挑战检查是否已完成
-    if (mode === 'daily') {
-      const today = getTodayUTCDate();
-      const completed = localStorage.getItem(`daily_${today}`);
-      if (completed) {
-        // 今天已完成，加载昨日数据
-        const savedCardId = localStorage.getItem(`daily_card_${today}`);
-        set({ dailyCompleted: true, dailyCardId: savedCardId });
-        // 仍然让玩家玩（查看答案），但不计入统计
-      }
-    }
 
     try {
       set({ loadingMessage: '正在获取卡牌信息...' });
@@ -216,12 +196,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
       saveStats(newStats);
       set({ stats: newStats });
-
-      // 每日挑战标记完成
-      if (get().mode === 'daily') {
-        localStorage.setItem(`daily_${today}`, 'completed');
-        localStorage.setItem(`daily_card_${today}`, targetCard.oracle_id);
-      }
 
       return true;
     } else {
