@@ -28,11 +28,15 @@ export default function TurtleSoupPage() {
     let cancelled = false;
     async function init() {
       try {
-        const card = await selectCard(null, (attempt, name, reason) => {
-          if (!cancelled) {
-            setLoadError(`第 ${attempt} 次重抽：${name}（${reason}）`);
+        const { card } = await selectCard(
+          null,
+          'normal',
+          (attempt, name, reason) => {
+            if (!cancelled) {
+              setLoadError(`第 ${attempt} 次重抽：${name}（${reason}）`);
+            }
           }
-        });
+        );
         if (!cancelled) {
           store.setTargetCard(card);
           setLoading(false);
@@ -66,9 +70,9 @@ export default function TurtleSoupPage() {
     store.reset();
     // 重新触发 useEffect
     setTimeout(() => {
-      selectCard(null, (attempt, name, reason) => {
+      selectCard(null, 'normal', (attempt, name, reason) => {
         setLoadError(`第 ${attempt} 次重抽：${name}（${reason}）`);
-      }).then((card) => {
+      }).then(({ card }) => {
         store.setTargetCard(card);
         setLoading(false);
         setLoadError('');
@@ -151,7 +155,14 @@ export default function TurtleSoupPage() {
         won={store.status === 'won'}
         guessCount={0}
         hintsRevealed={store.questionCount}
-        score={0}
+        score={{
+          score: 0,
+          maxScore: 1000,
+          baseScore: 0,
+          guessPenalty: 0,
+          hintPenalty: 0,
+          deckCount: 0,
+        }}
         onClose={() => setShowReveal(false)}
         onPlayAgain={handlePlayAgain}
       />

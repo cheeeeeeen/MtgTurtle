@@ -6,7 +6,10 @@ import type {
   GameStatus,
   GameStats,
   FormatOption,
-  ScoreCalculator,
+  DifficultyOption,
+  GameDifficulty,
+  ScoreBreakdown,
+  ScoreEvent,
 } from '@/types/card';
 import { HintEngine } from '@/engine/hint-engine';
 import { GuessMatcher } from '@/engine/guess-matcher';
@@ -26,30 +29,63 @@ export const FORMAT_OPTIONS: FormatOption[] = [
   { code: 'premodern', name: '前现代 (Premodern)' },
 ];
 
-/** 评分计算器（第一版仅猜测次数评分） */
-const guessCountScorer: ScoreCalculator = {
-  id: 'guess_count',
-  name: '猜测次数',
-  calculate: (guessCount: number) => {
-    if (guessCount === 1) return 100;
-    if (guessCount <= 3) return 80;
-    if (guessCount <= 6) return 60;
-    if (guessCount <= 10) return 40;
-    return 20;
-  },
-  weight: 1,
+export const DIFFICULTY_OPTIONS: DifficultyOption[] = [
+  { code: 'easy', name: '简单', description: '套牌使用热度 > 100' },
+  { code: 'normal', name: '中等', description: '套牌使用热度 > 10' },
+  { code: 'hard', name: '困难', description: '套牌使用热度 > 0' },
+];
+
+const GUESS_PENALTY_BY_LEVEL: Record<number, number> = {
+  1: 20,
+  2: 35,
+  3: 55,
+  4: 80,
+  5: 110,
+  6: 150,
 };
 
-const SCORERS: ScoreCalculator[] = [guessCountScorer];
+const HINT_PENALTY_BY_LEVEL: Record<number, number> = {
+  1: 20,
+  2: 25,
+  3: 35,
+  4: 45,
+  5: 55,
+  6: 70,
+};
 
-/** 计算最终得分 */
-function calculateScore(guessCount: number, _hintsRevealed: number): number {
-  const totalWeight = SCORERS.reduce((s, sc) => s + sc.weight, 0);
-  const weightedSum = SCORERS.reduce(
-    (s, sc) => s + sc.calculate(guessCount, 0) * sc.weight,
-    0
-  );
-  return Math.round(weightedSum / totalWeight);
+function getBaseScore(deckCount: number): number {
+  if (deckCount <= 10) return 1000;
+  if (deckCount <= 25) return 940;
+  if (deckCount <= 50) return 880;
+  if (deckCount <= 100) return 820;
+  if (deckCount <= 250) return 740;
+  if (deckCount <= 500) return 660;
+  if (deckCount <= 1000) return 580;
+  return 500;
+}
+
+function calculateScore(
+  deckCount: number,
+  scoreEvents: ScoreEvent[],
+  gaveUp = false
+): ScoreBreakdown {
+  const baseScore = getBaseScore(deckCount);
+  const guessPenalty = scoreEvents
+    .filter((event) => event.type === 'guess')
+    .reduce((sum, event) => sum + event.penalty, 0);
+  const hintPenalty = scoreEvents
+    .filter((event) => event.type === 'hint')
+    .reduce((sum, event) => sum + event.penalty, 0);
+  const rawScore = baseScore - guessPenalty - hintPenalty;
+
+  return {
+    score: gaveUp ? 0 : Math.max(60, rawScore),
+    maxScore: 1000,
+    baseScore,
+    guessPenalty,
+    hintPenalty,
+    deckCount,
+  };
 }
 
 function getHintLevelForProgressCount(progressCount: number): number {
@@ -88,11 +124,13 @@ function saveStats(stats: GameStats): void {
 interface GameState {
   // 当前目标卡牌
   targetCard: MtgCard | null;
+  targetDeckCount: number;
 
   // 提示引擎
   hintEngine: HintEngine | null;
   hintsRevealed: HintResult[];
   hintProgressCount: number;
+  scoreEvents: ScoreEvent[];
 
   // 猜测
   guesses: GuessRecord[];
@@ -104,6 +142,7 @@ interface GameState {
 
   // 设置
   formatFilter: string | null;
+  difficulty: GameDifficulty;
 
   // 统计
   stats: GameStats;
@@ -115,19 +154,23 @@ interface GameState {
   giveUp: () => void;
   resetGame: () => void;
   setFormatFilter: (format: string | null) => void;
-  getScore: () => { score: number; maxScore: number };
+  setDifficulty: (difficulty: GameDifficulty) => void;
+  getScore: () => ScoreBreakdown;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
   targetCard: null,
+  targetDeckCount: 0,
   hintEngine: null,
   hintsRevealed: [],
   hintProgressCount: 0,
+  scoreEvents: [],
   guesses: [],
   matcher: new GuessMatcher(),
   status: 'idle',
   loadingMessage: '',
   formatFilter: null,
+  difficulty: 'normal',
   stats: loadStats(),
 
   startGame: async () => {
@@ -137,7 +180,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       guesses: [],
       hintsRevealed: [],
       hintProgressCount: 0,
+      scoreEvents: [],
       targetCard: null,
+      targetDeckCount: 0,
       hintEngine: null,
     });
 
@@ -145,17 +190,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     try {
       set({ loadingMessage: '正在获取卡牌信息...' });
-      const card = await selectCard(state.formatFilter, (attempt, name, reason) => {
-        set({
-          loadingMessage: `第 ${attempt} 次重抽：${name}（${reason}）`,
-        });
-      });
+      const { card, deckCount } = await selectCard(
+        state.formatFilter,
+        state.difficulty,
+        (attempt, name, reason) => {
+          set({
+            loadingMessage: `第 ${attempt} 次重抽：${name}（${reason}）`,
+          });
+        }
+      );
 
       const engine = HintEngine.fromCard(card);
       const initialHint = engine.getRandomInitial();
 
       set({
         targetCard: card,
+        targetDeckCount: deckCount,
         hintEngine: engine,
         hintsRevealed: initialHint ? [initialHint] : [],
         status: 'playing',
@@ -168,7 +218,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   submitGuess: async (input: string) => {
-    const { targetCard, matcher, hintEngine, hintsRevealed, guesses } = get();
+    const {
+      targetCard,
+      targetDeckCount,
+      matcher,
+      hintEngine,
+      hintsRevealed,
+      guesses,
+      scoreEvents,
+    } = get();
     if (!targetCard || !hintEngine) return false;
 
     const isCorrect = matcher.isExactMatch(input, targetCard);
@@ -182,6 +240,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (isCorrect) {
       const newGuesses = [...guesses, guessRecord];
       set({ guesses: newGuesses, status: 'won' });
+      const score = calculateScore(targetDeckCount, scoreEvents).score;
 
       // 更新统计
       const stats = get().stats;
@@ -190,10 +249,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         totalGames: stats.totalGames + 1,
         totalWins: stats.totalWins + 1,
         totalGuesses: stats.totalGuesses + newGuesses.length,
-        bestScore: Math.max(
-          stats.bestScore,
-          calculateScore(newGuesses.length, hintsRevealed.length)
-        ),
+        bestScore: Math.max(stats.bestScore, score),
         currentStreak:
           stats.lastPlayedDate === today ? stats.currentStreak + 1 : 1,
         maxStreak: Math.max(
@@ -210,8 +266,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       // 揭示下一条提示
       const newGuesses = [...guesses, guessRecord];
       const nextProgressCount = get().hintProgressCount + 1;
+      const level = getHintLevelForProgressCount(nextProgressCount);
       const nextHint = hintEngine.revealNext(
-        getHintLevelForProgressCount(nextProgressCount)
+        level
       );
       const newHints = nextHint
         ? [...hintsRevealed, nextHint]
@@ -221,6 +278,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         guesses: newGuesses,
         hintsRevealed: newHints,
         hintProgressCount: nextProgressCount,
+        scoreEvents: [
+          ...scoreEvents,
+          {
+            type: 'guess',
+            level,
+            penalty: GUESS_PENALTY_BY_LEVEL[level],
+          },
+        ],
       });
 
       return false;
@@ -228,17 +293,24 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   requestHint: () => {
-    const { hintEngine, hintsRevealed, status, hintProgressCount } = get();
+    const { hintEngine, hintsRevealed, status, hintProgressCount, scoreEvents } = get();
     if (!hintEngine || status !== 'playing' || hintEngine.isExhausted()) return;
 
     const nextProgressCount = hintProgressCount + 1;
-    const nextHint = hintEngine.revealNext(
-      getHintLevelForProgressCount(nextProgressCount)
-    );
+    const level = getHintLevelForProgressCount(nextProgressCount);
+    const nextHint = hintEngine.revealNext(level);
 
     set({
       hintsRevealed: nextHint ? [...hintsRevealed, nextHint] : hintsRevealed,
       hintProgressCount: nextProgressCount,
+      scoreEvents: [
+        ...scoreEvents,
+        {
+          type: 'hint',
+          level,
+          penalty: HINT_PENALTY_BY_LEVEL[level],
+        },
+      ],
     });
   },
 
@@ -259,9 +331,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       status: 'idle',
       targetCard: null,
+      targetDeckCount: 0,
       hintEngine: null,
       hintsRevealed: [],
       hintProgressCount: 0,
+      scoreEvents: [],
       guesses: [],
       loadingMessage: '',
     });
@@ -271,9 +345,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ formatFilter: format });
   },
 
+  setDifficulty: (difficulty: GameDifficulty) => {
+    set({ difficulty });
+  },
+
   getScore: () => {
-    const { guesses, hintsRevealed } = get();
-    const score = calculateScore(guesses.length, hintsRevealed.length);
-    return { score, maxScore: 100 };
+    const { targetDeckCount, scoreEvents, status } = get();
+    return calculateScore(targetDeckCount, scoreEvents, status === 'gaveUp');
   },
 }));

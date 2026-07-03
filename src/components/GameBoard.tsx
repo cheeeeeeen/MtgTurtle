@@ -213,7 +213,7 @@ export default function GameBoard() {
         won={status === 'won'}
         guessCount={guesses.length}
         hintsRevealed={hintsRevealed.length}
-        score={getScoreFn().score}
+        score={getScoreFn()}
         onClose={() => setShowReveal(false)}
         onPlayAgain={handlePlayAgain}
       />

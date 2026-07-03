@@ -1,6 +1,6 @@
 import { Modal, Descriptions, Tag, Image, Typography, Divider } from 'antd';
 import { TrophyOutlined, FrownOutlined } from '@ant-design/icons';
-import type { MtgCard } from '@/types/card';
+import type { MtgCard, ScoreBreakdown } from '@/types/card';
 
 const { Text, Title } = Typography;
 
@@ -10,7 +10,7 @@ interface CardRevealProps {
   won: boolean;
   guessCount: number;
   hintsRevealed: number;
-  score: number;
+  score: ScoreBreakdown;
   onClose: () => void;
   onPlayAgain: () => void;
 }
@@ -151,9 +151,13 @@ export default function CardReveal({
         <Descriptions.Item label="揭示提示">{hintsRevealed}</Descriptions.Item>
         <Descriptions.Item label="得分">
           <Text strong style={{ fontSize: 18, color: '#faad14' }}>
-            {score}
+            {score.score}
           </Text>
         </Descriptions.Item>
+        <Descriptions.Item label="基础分">{score.baseScore}</Descriptions.Item>
+        <Descriptions.Item label="猜测扣分">-{score.guessPenalty}</Descriptions.Item>
+        <Descriptions.Item label="提示扣分">-{score.hintPenalty}</Descriptions.Item>
+        <Descriptions.Item label="套牌热度">{score.deckCount}</Descriptions.Item>
       </Descriptions>
     </Modal>
   );

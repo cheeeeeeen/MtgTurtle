@@ -1,4 +1,4 @@
-import type { MtgCard } from '@/types/card';
+import type { GameDifficulty, MtgCard } from '@/types/card';
 import { fetchRandomCard, fetchCardDetail, fetchDeckCount, fetchVersions } from '@/api/mtgch';
 
 /** 基本地牌名，需要排除 */
@@ -9,14 +9,11 @@ const BASIC_LANDS = new Set([
 /** Token 类型关键词 */
 const TOKEN_TYPES = ['Token', 'Vanguard', 'Card'];
 
-/** 热度过滤阈值 */
-const POPULARITY_THRESHOLDS = [
-  { min: 0, max: 0, acceptRate: 0 },
-  { min: 1, max: 9, acceptRate: 0.2 },
-  { min: 10, max: 99, acceptRate: 0.6 },
-  { min: 100, max: 499, acceptRate: 1.0 },
-  { min: 500, max: Infinity, acceptRate: 1.0 },
-];
+const DIFFICULTY_MIN_DECK_COUNT: Record<GameDifficulty, number> = {
+  easy: 100,
+  normal: 10,
+  hard: 0,
+};
 
 function isToken(card: MtgCard): boolean {
   return TOKEN_TYPES.some((t) => card.type_line.startsWith(t));
@@ -26,13 +23,9 @@ function isBasicLand(card: MtgCard): boolean {
   return BASIC_LANDS.has(card.name);
 }
 
-function getAcceptRate(deckCount: number): number {
-  for (const t of POPULARITY_THRESHOLDS) {
-    if (deckCount >= t.min && deckCount <= t.max) {
-      return t.acceptRate;
-    }
-  }
-  return 1.0;
+export interface SelectedCardResult {
+  card: MtgCard;
+  deckCount: number;
 }
 
 /** 处理双面牌：返回正面作为答案 */
@@ -77,7 +70,7 @@ async function fetchOldestVersion(card: MtgCard): Promise<MtgCard | null> {
 }
 
 /**
- * 用最老版本的系列信息覆盖卡牌的相关字段
+ * 用最老版本的印刷信息覆盖卡牌的相关字段
  * 游戏规则字段（oracle_text, type_line 等）保留不变
  * 如果最老版本缺少图片/画家则回退到原卡牌
  */
@@ -93,10 +86,30 @@ function applyOldestVersion(card: MtgCard, oldest: MtgCard): MtgCard {
     rarity: oldest.rarity,
     collector_number: oldest.collector_number,
     int_collector_number: oldest.int_collector_number,
+    name: oldest.name,
+    face_name: oldest.face_name,
+    printed_name: oldest.printed_name,
+    atomic_official_name: oldest.atomic_official_name,
+    full_official_name: oldest.full_official_name,
+    atomic_translated_name: oldest.atomic_translated_name,
+    full_translated_name: oldest.full_translated_name,
+    atomic_name_translated_from: oldest.atomic_name_translated_from,
+    zhs_name: oldest.zhs_name,
+    zhs_face_name: oldest.zhs_face_name,
+    pinyin: oldest.pinyin,
+    pinyin_first_letter: oldest.pinyin_first_letter,
     // 视觉信息（图片和画家要匹配最老版本，否则和系列信息矛盾）
     image_uris: oldest.image_uris ?? card.image_uris,
     zhs_image_uris: oldest.zhs_image_uris ?? card.zhs_image_uris,
-    artist: oldest.artist || card.artist,
+    artist: oldest.artist,
+    artist_ids: oldest.artist_ids,
+    flavor_name: oldest.flavor_name ?? null,
+    flavor_text: oldest.flavor_text ?? null,
+    atomic_translated_flavor_name: oldest.atomic_translated_flavor_name ?? null,
+    atomic_translated_flavor_text: oldest.atomic_translated_flavor_text ?? null,
+    atomic_flavor_translated_from: oldest.atomic_flavor_translated_from ?? null,
+    zhs_flavor_name: oldest.zhs_flavor_name ?? null,
+    zhs_flavor_text: oldest.zhs_flavor_text ?? null,
   };
 }
 
@@ -107,9 +120,11 @@ function applyOldestVersion(card: MtgCard, oldest: MtgCard): MtgCard {
  */
 export async function selectCard(
   formatCode?: string | null,
+  difficulty: GameDifficulty = 'normal',
   onRetry?: (attempt: number, cardName: string, reason: string) => void
-): Promise<MtgCard> {
+): Promise<SelectedCardResult> {
   let attempt = 0;
+  const minDeckCount = DIFFICULTY_MIN_DECK_COUNT[difficulty];
 
   while (true) {
     attempt++;
@@ -134,17 +149,11 @@ export async function selectCard(
     // Step 4: 查询热度
     const { count } = await fetchDeckCount(card.oracle_id, formatCode);
 
-    if (count === 0) {
-      onRetry?.(attempt, card.name, '套牌数为 0');
-      continue;
-    }
-
-    const acceptRate = getAcceptRate(count);
-    if (Math.random() >= acceptRate) {
+    if (count <= minDeckCount) {
       onRetry?.(
         attempt,
         card.name,
-        `套牌数 ${count}，接受率 ${(acceptRate * 100).toFixed(0)}%`
+        `套牌数 ${count}，未超过难度门槛 ${minDeckCount}`
       );
       continue;
     }
@@ -152,6 +161,6 @@ export async function selectCard(
     // 通过！替换为最早版本的系列信息
     const oldest = await fetchOldestVersion(card);
     const finalCard = oldest ? applyOldestVersion(card, oldest) : card;
-    return normalizeCard(finalCard);
+    return { card: normalizeCard(finalCard), deckCount: count };
   }
 }

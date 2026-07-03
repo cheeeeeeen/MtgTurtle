@@ -264,6 +264,15 @@ export type GameStatus = 'idle' | 'loading' | 'playing' | 'won' | 'gaveUp';
 /** 游戏模式 */
 export type GameMode = 'free' | 'daily';
 
+export type GameDifficulty = 'easy' | 'normal' | 'hard';
+
+/** 难度选项 */
+export interface DifficultyOption {
+  code: GameDifficulty;
+  name: string;
+  description: string;
+}
+
 /** 游戏统计（持久化） */
 export interface GameStats {
   totalGames: number;
@@ -281,6 +290,19 @@ export interface ScoreCalculator {
   name: string;
   calculate: (guessCount: number, hintsRevealed: number) => number;
   weight: number;
+}
+
+export type ScoreEvent =
+  | { type: 'guess'; level: number; penalty: number }
+  | { type: 'hint'; level: number; penalty: number };
+
+export interface ScoreBreakdown {
+  score: number;
+  maxScore: number;
+  baseScore: number;
+  guessPenalty: number;
+  hintPenalty: number;
+  deckCount: number;
 }
 
 /** 赛制选项 */
