@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Row, Col, Button, Space, Spin, Typography, List, Tag, Alert } from 'antd';
 import {
+  BulbOutlined,
   FlagOutlined,
   ReloadOutlined,
   HomeOutlined,
@@ -27,6 +28,7 @@ export default function GameBoard() {
   const stats = useGameStore((s) => s.stats);
   const startGame = useGameStore((s) => s.startGame);
   const submitGuess = useGameStore((s) => s.submitGuess);
+  const requestHint = useGameStore((s) => s.requestHint);
   const giveUp = useGameStore((s) => s.giveUp);
   const getScoreFn = useGameStore((s) => s.getScore);
 
@@ -47,6 +49,11 @@ export default function GameBoard() {
   const handlePlayAgain = () => {
     setShowReveal(false);
     startGame();
+  };
+
+  const handleRequestHint = () => {
+    if (status !== 'playing') return;
+    requestHint();
   };
 
   // 加载状态
@@ -114,13 +121,22 @@ export default function GameBoard() {
                 重新开始
               </Button>
               {status === 'playing' && (
-                <Button
-                  danger
-                  icon={<FlagOutlined />}
-                  onClick={handleGiveUp}
-                >
-                  放弃
-                </Button>
+                <>
+                  <Button
+                    icon={<BulbOutlined />}
+                    onClick={handleRequestHint}
+                    disabled={hintEngine?.isExhausted() ?? true}
+                  >
+                    获取提示
+                  </Button>
+                  <Button
+                    danger
+                    icon={<FlagOutlined />}
+                    onClick={handleGiveUp}
+                  >
+                    放弃
+                  </Button>
+                </>
               )}
             </Space>
           </div>

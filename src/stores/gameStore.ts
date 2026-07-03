@@ -52,8 +52,8 @@ function calculateScore(guessCount: number, _hintsRevealed: number): number {
   return Math.round(weightedSum / totalWeight);
 }
 
-function getHintLevelForGuessCount(guessCount: number): number {
-  return Math.min(Math.floor(guessCount / 5) + 1, 6);
+function getHintLevelForProgressCount(progressCount: number): number {
+  return Math.min(Math.floor(progressCount / 5) + 1, 6);
 }
 
 /** 获取今日 UTC 日期字符串 */
@@ -92,6 +92,7 @@ interface GameState {
   // 提示引擎
   hintEngine: HintEngine | null;
   hintsRevealed: HintResult[];
+  hintProgressCount: number;
 
   // 猜测
   guesses: GuessRecord[];
@@ -110,6 +111,7 @@ interface GameState {
   // Actions
   startGame: () => Promise<void>;
   submitGuess: (input: string) => Promise<boolean>;
+  requestHint: () => void;
   giveUp: () => void;
   resetGame: () => void;
   setFormatFilter: (format: string | null) => void;
@@ -120,6 +122,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   targetCard: null,
   hintEngine: null,
   hintsRevealed: [],
+  hintProgressCount: 0,
   guesses: [],
   matcher: new GuessMatcher(),
   status: 'idle',
@@ -133,6 +136,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       loadingMessage: '正在随机抽取卡牌...',
       guesses: [],
       hintsRevealed: [],
+      hintProgressCount: 0,
       targetCard: null,
       hintEngine: null,
     });
@@ -205,8 +209,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     } else {
       // 揭示下一条提示
       const newGuesses = [...guesses, guessRecord];
+      const nextProgressCount = get().hintProgressCount + 1;
       const nextHint = hintEngine.revealNext(
-        getHintLevelForGuessCount(newGuesses.length)
+        getHintLevelForProgressCount(nextProgressCount)
       );
       const newHints = nextHint
         ? [...hintsRevealed, nextHint]
@@ -215,10 +220,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({
         guesses: newGuesses,
         hintsRevealed: newHints,
+        hintProgressCount: nextProgressCount,
       });
 
       return false;
     }
+  },
+
+  requestHint: () => {
+    const { hintEngine, hintsRevealed, status, hintProgressCount } = get();
+    if (!hintEngine || status !== 'playing' || hintEngine.isExhausted()) return;
+
+    const nextProgressCount = hintProgressCount + 1;
+    const nextHint = hintEngine.revealNext(
+      getHintLevelForProgressCount(nextProgressCount)
+    );
+
+    set({
+      hintsRevealed: nextHint ? [...hintsRevealed, nextHint] : hintsRevealed,
+      hintProgressCount: nextProgressCount,
+    });
   },
 
   giveUp: () => {
@@ -240,6 +261,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       targetCard: null,
       hintEngine: null,
       hintsRevealed: [],
+      hintProgressCount: 0,
       guesses: [],
       loadingMessage: '',
     });

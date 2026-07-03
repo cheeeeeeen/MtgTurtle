@@ -1,11 +1,11 @@
-import { Card, Row, Col, Button, Typography, Divider } from 'antd';
-import { PlayCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Button, Typography, Divider, Space } from 'antd';
+import { MessageOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import SettingsPanel from '@/components/SettingsPanel';
 import ScoreBoard from '@/components/ScoreBoard';
 import { useGameStore, FORMAT_OPTIONS } from '@/stores/gameStore';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -53,6 +53,29 @@ export default function HomePage() {
 
         <Col xs={24} md={8}>
           <ScoreBoard stats={stats} />
+          <Card
+            size="small"
+            title={
+              <span>
+                <MessageOutlined style={{ marginRight: 8 }} />
+                联系与反馈
+              </span>
+            }
+            style={{ marginTop: 16 }}
+          >
+            <Space direction="vertical" size={4}>
+              <Text>
+                作者：<Text strong>木叶狐</Text>
+              </Text>
+              <Text>
+                QQ：<Text copyable>1357487975</Text>
+              </Text>
+              <Paragraph type="secondary" style={{ margin: '8px 0 0' }}>
+                如果你遇到了 Bug、发现提示不准确，或者有新的玩法建议，
+                欢迎来找我交流。每一条反馈都会帮助这个小游戏变得更好。
+              </Paragraph>
+            </Space>
+          </Card>
         </Col>
       </Row>
     </div>
