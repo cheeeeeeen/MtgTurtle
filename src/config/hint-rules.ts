@@ -90,7 +90,7 @@ function hasKeyword(card: MtgCard, en: string, zh: string): boolean {
 }
 
 function nameWords(name: string): string[] {
-  return name.match(/[A-Za-z0-9]+/g) ?? [];
+  return name.match(/[A-Za-z0-9]+(?:['’][A-Za-z0-9]+)*/g) ?? [];
 }
 
 export const hintRules: HintRule[] = [

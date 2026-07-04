@@ -1,4 +1,4 @@
-import type { GameDifficulty, MtgCard } from '@/types/card';
+import type { GameDifficulty, Legalities, MtgCard } from '@/types/card';
 import { fetchRandomCard, fetchCardDetail, fetchDeckCount, fetchVersions } from '@/api/mtgch';
 
 /** 基本地牌名，需要排除 */
@@ -21,6 +21,12 @@ function isToken(card: MtgCard): boolean {
 
 function isBasicLand(card: MtgCard): boolean {
   return BASIC_LANDS.has(card.name);
+}
+
+function isLegalInFormat(card: MtgCard, formatCode?: string | null): boolean {
+  if (!formatCode) return true;
+  const legality = card.legalities?.[formatCode as keyof Legalities];
+  return legality === 'legal' || legality === 'restricted';
 }
 
 export interface SelectedCardResult {
@@ -143,6 +149,11 @@ export async function selectCard(
 
     if (isToken(card)) {
       onRetry?.(attempt, card.name, 'Token/特殊牌');
+      continue;
+    }
+
+    if (!isLegalInFormat(card, formatCode)) {
+      onRetry?.(attempt, card.name, `不属于 ${formatCode} 合法牌`);
       continue;
     }
 
